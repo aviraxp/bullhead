@@ -43,6 +43,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/swap.h>
+#include <linux/fs.h>
 
 #ifdef CONFIG_HIGHMEM
 #define _ZONE ZONE_HIGHMEM
@@ -253,10 +254,15 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	}
 
 	other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
-	other_file = global_page_state(NR_FILE_PAGES) -
+
+	if (global_page_state(NR_SHMEM) + total_swapcache_pages() <
+		global_page_state(NR_FILE_PAGES))
+		other_file = global_page_state(NR_FILE_PAGES) -
 						global_page_state(NR_SHMEM) -
 						global_page_state(NR_UNEVICTABLE) -
 						total_swapcache_pages();
+	else
+		other_file = 0;
 
 	tune_lmk_param(&other_free, &other_file, sc);
 
