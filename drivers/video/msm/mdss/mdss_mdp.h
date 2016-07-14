@@ -300,6 +300,7 @@ struct mdss_mdp_ctl {
 	u32 wb_type;
 	u32 prg_fet;
 	bool force_ctl_start;
+	bool commit_in_progress;
 };
 
 struct mdss_mdp_mixer {
