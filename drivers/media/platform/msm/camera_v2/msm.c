@@ -615,6 +615,9 @@ static long msm_private_ioctl(struct file *file, void *fh,
 	unsigned int stream_id;
 	unsigned long spin_flags = 0;
 
+	if (!event_data)
+		return -EINVAL;
+
 	session_id = event_data->session_id;
 	stream_id = event_data->stream_id;
 
