@@ -632,7 +632,7 @@ config EARJACK_DEBUGGER
 
 config UID_SYS_STATS
 	bool "Per-UID statistics"
-	depends on PROFILING
+	depends on PROFILING && TASK_XACCT && TASK_IO_ACCOUNTING
 	select TASKSTATS
 	select TASK_XACCT
 	select TASK_IO_ACCOUNTING
