@@ -104,7 +104,7 @@ enum {
 	BINDER_DEBUG_PRIORITY_CAP           = 1U << 14,
 	BINDER_DEBUG_BUFFER_ALLOC_ASYNC     = 1U << 15,
 };
-static uint32_t binder_debug_mask = 0;
+static uint32_t binder_debug_mask;
 
 module_param_named(debug_mask, binder_debug_mask, uint, S_IWUSR | S_IRUGO);
 
@@ -355,6 +355,7 @@ enum {
 	BINDER_LOOPER_STATE_ENTERED     = 0x02,
 	BINDER_LOOPER_STATE_EXITED      = 0x04,
 	BINDER_LOOPER_STATE_INVALID     = 0x08,
+	BINDER_LOOPER_STATE_WAITING     = 0x10,
 	BINDER_LOOPER_STATE_NEED_RETURN = 0x20
 };
 
@@ -506,7 +507,6 @@ static inline long copy_from_user_preempt_disabled(void *to, const void __user *
 ({						\
 	int __ret;				\
 	preempt_enable_no_resched();		\
-	barrier();				\
 	__ret = get_user(x, ptr);		\
 	preempt_disable();			\
 	__ret;					\
@@ -516,7 +516,6 @@ static inline long copy_from_user_preempt_disabled(void *to, const void __user *
 ({						\
 	int __ret;				\
 	preempt_enable_no_resched();		\
-	barrier();				\
 	__ret = put_user(x, ptr);		\
 	preempt_disable();			\
 	__ret;					\
@@ -2654,7 +2653,7 @@ static int binder_thread_write(struct binder_proc *proc,
 			if (get_user_preempt_disabled(cookie, (binder_uintptr_t __user *)ptr))
 				return -EFAULT;
 
-			ptr += sizeof(cookie);
+			ptr += sizeof(void *);
 			list_for_each_entry(w, &proc->delivered_death, entry) {
 				struct binder_ref_death *tmp_death = container_of(w, struct binder_ref_death, work);
 				if (tmp_death->cookie == cookie) {
@@ -2735,8 +2734,6 @@ static int binder_thread_read(struct binder_proc *proc,
 		ptr += sizeof(uint32_t);
 	}
 
-	thread->looper &= ~BINDER_LOOPER_STATE_NEED_RETURN;
-
 retry:
 	wait_for_proc_work = thread->transaction_stack == NULL &&
 				list_empty(&thread->todo);
@@ -2747,9 +2744,9 @@ retry:
 				return -EFAULT;
 			ptr += sizeof(uint32_t);
 			binder_stat_br(proc, thread, thread->return_error2);
-			thread->return_error2 = BR_OK;
 			if (ptr == end)
 				goto done;
+			thread->return_error2 = BR_OK;
 		}
 		if (put_user_preempt_disabled(thread->return_error, (uint32_t __user *)ptr))
 			return -EFAULT;
@@ -2760,6 +2757,7 @@ retry:
 	}
 
 
+	thread->looper |= BINDER_LOOPER_STATE_WAITING;
 	if (wait_for_proc_work)
 		proc->ready_threads++;
 
@@ -2794,6 +2792,7 @@ retry:
 
 	if (wait_for_proc_work)
 		proc->ready_threads--;
+	thread->looper &= ~BINDER_LOOPER_STATE_WAITING;
 
 	if (ret)
 		return ret;
@@ -3109,6 +3108,7 @@ static struct binder_thread *binder_get_thread(struct binder_proc *proc)
 		INIT_LIST_HEAD(&thread->todo);
 		rb_link_node(&thread->rb_node, parent, p);
 		rb_insert_color(&thread->rb_node, &proc->threads);
+		thread->looper |= BINDER_LOOPER_STATE_NEED_RETURN;
 		thread->return_error = BR_OK;
 		thread->return_error2 = BR_OK;
 	}
@@ -3160,23 +3160,17 @@ static unsigned int binder_poll(struct file *filp,
 				struct poll_table_struct *wait)
 {
 	struct binder_proc *proc = filp->private_data;
-	struct binder_thread *thread;
+	struct binder_thread *thread = NULL;
 	int wait_for_proc_work;
 
 	binder_lock(__func__);
 
 	thread = binder_get_thread(proc);
-	if (thread) {
-		thread->looper &= ~BINDER_LOOPER_STATE_NEED_RETURN;
-		wait_for_proc_work = thread->transaction_stack == NULL &&
-				     list_empty(&thread->todo) &&
-				     thread->return_error == BR_OK;
-	}
+
+	wait_for_proc_work = thread->transaction_stack == NULL &&
+		list_empty(&thread->todo) && thread->return_error == BR_OK;
 
 	binder_unlock(__func__);
-
-	if (!thread)
-		return POLLERR;
 
 	if (wait_for_proc_work) {
 		if (binder_has_proc_work(proc, thread))
@@ -3326,6 +3320,8 @@ static long binder_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 	ret = 0;
 err:
+	if (thread)
+		thread->looper &= ~BINDER_LOOPER_STATE_NEED_RETURN;
 	binder_unlock(__func__);
 	wait_event_interruptible(binder_user_error_wait, binder_stop_on_user_error < 2);
 	if (ret && ret != -ERESTARTSYS)
@@ -3538,14 +3534,16 @@ static void binder_deferred_flush(struct binder_proc *proc)
 	for (n = rb_first(&proc->threads); n != NULL; n = rb_next(n)) {
 		struct binder_thread *thread = rb_entry(n, struct binder_thread, rb_node);
 		thread->looper |= BINDER_LOOPER_STATE_NEED_RETURN;
-		wake_up(&thread->wait);
-		wake_count++;
+		if (thread->looper & BINDER_LOOPER_STATE_WAITING) {
+			wake_up_interruptible(&thread->wait);
+			wake_count++;
+		}
 	}
 	wake_up_interruptible_all(&proc->wait);
 
 	binder_debug(BINDER_DEBUG_OPEN_CLOSE,
-		     "binder_flush: %d attempted to wake %d threads\n",
-		     proc->pid, wake_count);
+		     "binder_flush: %d woke %d threads\n", proc->pid,
+		     wake_count);
 }
 
 static int binder_release(struct inode *nodp, struct file *filp)
