@@ -601,7 +601,7 @@ KBUILD_CFLAGS   += $(call cc-option,-fno-store-merging,)
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
 else
-KBUILD_CFLAGS	+= -O2
+KBUILD_CFLAGS	+= -O2 -finline-functions -Wno-maybe-uninitialized
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
