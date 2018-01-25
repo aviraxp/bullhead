@@ -2691,12 +2691,13 @@
 				   "tsens_tz_sensor13", "tsens_tz_sensor14";
 		qcom,freq-mitigation-temp = <100>;
 		qcom,freq-mitigation-temp-hysteresis = <20>;
-		qcom,freq-mitigation-value = <768000>;
+		qcom,freq-mitigation-value = <960000>;
 		qcom,freq-mitigation-control-mask = <0x30>;
 		qcom,online-hotplug-core;
 		qcom,synchronous-cluster-id = <0 1>;
 		qcom,vdd-restriction-temp = <5>;
 		qcom,vdd-restriction-temp-hysteresis = <10>;
+                qcom,disable-vdd-rstr;
 
 		vdd-dig-supply = <&pm8994_s1_floor_corner>;
 		vdd-gfx-supply = <&pmi8994_s2_floor_corner>;
@@ -2724,9 +2725,9 @@
 		compatible = "qcom,bcl";
 		qcom,bcl-enable;
 		qcom,bcl-framework-interface;
-		qcom,bcl-hotplug-list = <&CPU4 &CPU5>;
 		qcom,bcl-freq-control-list = <&CPU4 &CPU5>;
-		qcom,bcl-soc-hotplug-list = <&CPU4 &CPU5>;
+                /delete-property/ qcom,bcl-hotplug-list;
+                /delete-property/ qcom,bcl-soc-hotplug-list;
 		qcom,ibat-monitor {
 			qcom,low-threshold-uamp = <3400000>;
 			qcom,high-threshold-uamp = <4200000>;
