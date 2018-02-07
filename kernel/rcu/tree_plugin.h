@@ -2530,7 +2530,7 @@ static void rcu_spawn_one_nocb_kthread(struct rcu_state *rsp, int cpu)
 	struct rcu_data *rdp_old_leader;
 	struct rcu_data *rdp_spawn = per_cpu_ptr(rsp->rda, cpu);
 	struct task_struct *t;
-	const unsigned long allowed_cpus = 0x3;
+	const unsigned long allowed_cpus = 0xF;
 
 	/*
 	 * If this isn't a no-CBs CPU or if it already has an rcuo kthread,
