@@ -22,7 +22,6 @@ KBUILD_DEFCONFIG := defconfig
 KBUILD_CFLAGS	+= -mgeneral-regs-only
 KBUILD_CFLAGS	+= -fno-pic
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
-KBUILD_CFLAGS	+= $(call cc-ifversion, -ge, 0500, -DCONFIG_ARCH_SUPPORTS_INT128)
 
 # Optimize for big.LITTLE configuration
 ARM_ARCH_OPT	:= -mcpu=cortex-a57.cortex-a53+crypto+crc \
