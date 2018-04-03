@@ -371,20 +371,13 @@ LINUXINCLUDE    := \
 KBUILD_CPPFLAGS := -D__KERNEL__
 
 KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
-                   -fgraphite-identity -floop-nest-optimize -fivopts \
-                   -ftree-loop-distribution -ftree-loop-distribute-patterns -ftree-vectorize \
                    -fmodulo-sched -fmodulo-sched-allow-regmoves \
-                   -mcpu=cortex-a57.cortex-a53 -mtune=cortex-a57.cortex-a53 \
+                   -mcpu=cortex-a57.cortex-a53+crypto+crc -mtune=cortex-a57.cortex-a53 \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
-                   -fomit-frame-pointer \
 		   -std=gnu89
-
-# These flags need a special toolchain so split them off
-KBUILD_CFLAGS  += $(call cc-option,-mlow-precision-recip-sqrt,) \
-                  $(call cc-option,-mpc-relative-literal-loads,)
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=

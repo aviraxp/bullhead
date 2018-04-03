@@ -23,12 +23,6 @@ KBUILD_CFLAGS	+= -mgeneral-regs-only
 KBUILD_CFLAGS	+= -fno-pic
 KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
 
-# Optimize for big.LITTLE configuration
-ARM_ARCH_OPT	:= -mcpu=cortex-a57.cortex-a53+crypto+crc \
-                   -mtune=cortex-a57.cortex-a53
-
-KBUILD_CFLAGS	+= $(call cc-option,$(ARM_ARCH_OPT),)
-
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
 KBUILD_CPPFLAGS	+= -mbig-endian
 AS		+= -EB
